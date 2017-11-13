@@ -3,7 +3,7 @@
 
 ''' 
 Generate synthetic cancer records. We generate 7 variables:
-T, M, N, HER2, ER, PR
+T, M, N, Grade, HER2, ER, PR
 The frequencies of T,N,M match those found in the slice of SEER Sabbir gave us.
 HER2, ER, and PR are independent and uniform, although this could be changed.
 
