@@ -19,6 +19,10 @@ other variables? Is getting a better idea of this structure useful for the demo?
 
 (3) Should we also generate a staging variable? If we want it to be consistent
 with the T,N,M frequencies, it would have to be the old version.
+
+NOTE: I got the frequencies from the first spreadsheet Sabbir sent us, not the second.
+Apparently the first was not correct or something. So if frequencies matter for the demo,
+this should be changed.
 '''
 
 import numpy as np
