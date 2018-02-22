@@ -4,4 +4,8 @@ If you want to run it locally, you'll need to change the `path` variable in `ser
 
 At the moment, the code is not particularly clean. There are a few different variable-naming conventions, minimal comments at times, and out-of-date commands that have been commented-out instead of removed.
 
+The two scripts `ui.R` and `server.R` contain all of the browser's code. You need both of them in the same directory to run it.
+
 The `analytic` subdirectory contains all of the NHANES datasets used for the browser. The dataset structure was designed to be easily usable in the browser, so there's a lot of redundant variables in them.
+
+The file `allNames.csv` contains the full names of all the NHANES variables.
