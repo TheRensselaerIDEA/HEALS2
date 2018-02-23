@@ -6,29 +6,19 @@
 #    http://shiny.rstudio.com/
 #
 
-# All the inputs that users choose will be automatically saved to 'input' and if you use a $ after input,
-# you will see all the user interface input data.
+require(tidyverse) # the only real package
+require(broom)     # make model output aesthetic
+require(survey)    # survey analysis
+library(shiny)     # interative applications
+library(shinyBS)   # popup windows in shiny
 
-library(tidyverse) # the only real package
-library(broom)     # make model output aesthetic
-library(survey)    # survey analysis
-# library(caret)
-# library(heals.nhanes)
-library(RNHANES)
-# library(stringr)
-library(shiny)
-library(shinyBS)
-# data("environmental")
-# data("diseases")
-
-# options(shiny.sanitize.errors = FALSE)
+filePath <- "~/ShinyApps/risk_browser_v2/analytic/"
 
 #The real shiny app function
 shinyServer(function(input, output, session) {
   
   ## load all the datafiles
-  path <- "~/ShinyApps/risk_browser_v2/analytic/"
-  list.files(path=path, pattern='.csv') -> dataFileNames
+  list.files(path=filePath, pattern='.csv') -> dataFileNames
   dataFileNames %>%
     lapply(function(x) suppressMessages(read_csv(paste0(path, x), col_types = cols(.default = "d")))) -> dataFiles
   names(dataFiles) <- dataFileNames
@@ -40,8 +30,6 @@ shinyServer(function(input, output, session) {
     mutate(temp = tolower(iconv(variable_description, 'UTF-8', 'ASCII'))) %>%
     distinct(variable_name, .keep_all=TRUE) %>%
     select(-temp)
-  cadre_table <- read_csv('cadre_table.csv')
-  cadre_data  <- read_csv('cadre_data.csv')
   
   ## perform analysis for a category of variables (e.g., all phthalates measured together)
   ## tags should be a vector, e.g. c('URX', 'LBX')
@@ -50,12 +38,12 @@ shinyServer(function(input, output, session) {
     options(survey.lonely.psu="adjust") # do this to avoid failures in precision cohort -- debatable statistical validity I think
     ## perform analysis for a single study variable
     analysisIndividual <- function(design, studyVar, responseModel){
-      print(c(studyVar, controls))
+      print(c(studyVar))
       if(sum(is.na(analyticSet[,studyVar])) > 0){
         return(tibble())
       }
-      # if('URXUCR' %in% names(
-      form <- paste(disease, paste(c(controls, studyVar), collapse='+'), sep='~')
+      ## construct formula
+      form <- as.formula(paste(disease, paste(c(controls, studyVar), collapse='+'), sep='~'))
       if(responseModel %in% c('quasibinomial')){
         svyglm(form, design=design, family=quasibinomial()) %>%
           tidy() %>%
@@ -63,7 +51,8 @@ shinyServer(function(input, output, session) {
           mutate(nPos = sum(analyticSet[,disease]==1),
                  nObs = nrow(analyticSet)) %>%
           return()
-      } else{
+      }
+      if(responseModel %in% c('gaussian')){
         svyglm(form, design=design, family=gaussian()) %>%
           tidy() %>%
           filter(term == studyVar) %>%
@@ -71,10 +60,9 @@ shinyServer(function(input, output, session) {
           return()
       }
     }
-    ## remove control variables not found in this dataset and add in creatinine if needed
+    ## remove control variables not found in this dataset
     controls <- intersect(controls, names(dataFile))
-    # if('URXUCR' %in% names(dataFile)){controls <- c(controls, 'URXUCR')}
-    ## pre-process urinary and blood variables
+    ## pre-process urinary and blood variables with standardization and log transforms
     urineVars <- names(dataFile)[str_detect(names(dataFile), 'URX')]
     bloodVars <- names(dataFile)[str_detect(names(dataFile), 'LBX')]
     dataFile[,c(urineVars, bloodVars)] <- scale(log(dataFile[,c(urineVars, bloodVars)] + 1e-5))
@@ -85,18 +73,15 @@ shinyServer(function(input, output, session) {
     analyticSet <- dataFile %>% filter(wt > 0)
     ## are we doing precision cohort analysis?
     if(input$pre_coh == TRUE){
-      # print(analyticSet %>% nrow())
+      ## construct precision cohort variables and filter for membership
       if('begin_year' %in% names(analyticSet)){
         analyticSet <- analyticSet %>% filter(begin_year %in% input$cohort)
-        # print(c('begin_year', analyticSet %>% nrow()))
       }
       if('RIAGENDR' %in% names(analyticSet)){
         analyticSet <- analyticSet %>% filter(RIAGENDR %in% input$gender)
-        # print(c('gender', analyticSet %>% nrow()))
       }
       if('RIDRETH1' %in% names(analyticSet)){
         analyticSet <- analyticSet %>% filter(RIDRETH1 %in% input$ethnicity)
-        # print(c('ethnicity', analyticSet %>% nrow()))
       }
       if('RIDAGEYR' %in% names(analyticSet)){
         analyticSet <- analyticSet %>%
@@ -106,7 +91,6 @@ shinyServer(function(input, output, session) {
             .$RIDAGEYR < 65 ~ 'old_adult',
             TRUE ~ 'elderly')) %>%
           filter(age_cat %in% input$age_cat)
-        # print(c('age', analyticSet %>% nrow()))
       }
       if('BMXBMI' %in% names(analyticSet)){
         analyticSet <- analyticSet %>%
@@ -120,10 +104,9 @@ shinyServer(function(input, output, session) {
             .$BMXBMI <= 40 ~ 'SO',
             TRUE ~ 'VSO')) %>%
           filter(bmi_cat %in% bmi_cats())
-        # print(c('bmi', analyticSet %>% nrow()))
       }
     }
-    ## perform survey modeling
+    ## perform category's worth of study modeling
     design <- svydesign(id=~SDMVPSU, strata=~SDMVSTRA, weights=~wt, data=analyticSet, nest=TRUE)
     lapply(studyVars, function(studyVar) analysisIndividual(design, studyVar, responseModel)) %>%
       bind_rows() %>%
@@ -145,15 +128,15 @@ shinyServer(function(input, output, session) {
                         bmi_cat
   })
   
-  #Extract the risk factors part of the result table and rearrange the form
+  # perform a study's worth of analysis and return the results
   riskfactors <- reactive({
+    ## progress bar
     progress <- Progress$new(min=1, max=15)
     on.exit(progress$close())
     
     progress$set(message = 'Calculation in progress',
                  detail = 'This may take a while...')
     disease <- input$Disease
-    print(disease)
     ## should we use suggested control variables?
     if(input$suggControlVar == TRUE){
       controls <- switch(disease,
@@ -170,13 +153,13 @@ shinyServer(function(input, output, session) {
     continuousTargets <- c('sbp', 'dbp')
     binaryTargets <- c('breast', 'corHeart', 'diabetes', 'thyroid')
     responseModel <- if_else(disease %in% continuousTargets, 'gaussian', 'quasibinomial')
-    ## helper variable for reading data
+    ## helper variable for reading some data
     diseaseTag = if_else(disease %in% binaryTargets, disease, 'bp')
     exposures <- input$Environmental
     ## extract the datafiles that correspond to the disease and then the exposures data
     specificFiles <- dataFiles[str_detect(names(dataFiles), diseaseTag)]
     specificFiles <- specificFiles[str_detect(names(specificFiles), str_c(exposures, collapse='|'))]
-    ## change disease name to what's used in dataframes
+    ## change disease name to what's used as variables in the dataframes
     diseaseAlternate <- switch(disease,
                                breast = 'bc',
                                corHeart = 'hrtDis',
@@ -184,7 +167,7 @@ shinyServer(function(input, output, session) {
                                thyroid = 'thyroidCond',
                                dbp = 'dbp',
                                sbp = 'sbp')
-    print(specificFiles %>% names())
+    ## perform analyses and bind the results into a single table
     lapply(specificFiles, function(x) 
       analysisCategory(diseaseAlternate, responseModel, controls, x, c('URX', 'LBX'), c('URXUCR', 'LBXCOT'))) %>%
       bind_rows() %>%
@@ -207,31 +190,19 @@ shinyServer(function(input, output, session) {
       filter(`Regression Coefficient` > 0, `BH p-value` < input$threshold)
     mitiFactors <- results %>%
       filter(`Regression Coefficient` < 0, `BH p-value` < input$threshold)
-    # sort <- input$sortby
-    # if(input$order == 'ascending'){
-    #   riskFactors <- riskFactors %>%
-    #     arrange_(.dots=paste0('`', sort, '`'))
-    #   mitiFactors <- mitiFactors %>%
-    #     arrange_(.dots=paste0('`', sort, '`'))
-    # } else {
-    #   riskFactors <- riskFactors %>%
-    #     arrange_(.dots=paste0('desc(`', sort, '`)'))
-    #   mitiFactors <- mitiFactors %>%
-    #     arrange_(.dots=paste0('desc(`', sort, '`)'))
-    # }
-    
+    ## this is a nonfunctional progress bar -- fix at some point
     for (i in 1:15) {
       progress$set(value = i)
       Sys.sleep(0.5)
     }
     list(a=riskFactors, b=mitiFactors, c=results) %>% return()
   })
+  results <- riskfactors()
+  ## DataTables that contain risk and mitigation factors
+  output$riskfactor <- renderDataTable({results$a})
+  output$mitifactor <- renderDataTable({results$b})
   
-  # Show the values in an HTML table ----
-  output$riskfactor <- renderDataTable({
-    results <- riskfactors()
-    results$a})
-  
+  ## popup messages for all the parts -- there are a lot of these
   addPopover(session, 'riskfactor', placement='left', option=list(container='body'), title='Definitions',
              content=paste0('<b>regression coefficients</b> above zero indicate a positive association with the condition. <br/><br/>',
                          '<b>standard errors</b> quantify the uncertainty in the estimation of the regression coefficient. <br/><br/>',
@@ -297,20 +268,7 @@ shinyServer(function(input, output, session) {
                             '<b>Obese</b>: Very severely obese, severely obese, or moderately obese'))
   addPopover(session, 'cohort', placement='right', option=list(container='body'), title='Cohort Years:',
              content='Note: Not all study variables are found in all cohorts')
-  # Show the values in an HTML table ----
-  output$mitifactor <- renderDataTable({
-    results <- riskfactors()
-    results$b
-  })#, options = list(
-  #   pageLength = 5,
-  #   initComplete = I("function(settings, json) {alert('Done.');}")))#,digits=3)
-  # output$mitifactor <- renderTable({
-  #   results <- riskfactors()
-  #   results$b
-  # }, digits=3)
 
-  
-  
   output$warning <- renderText({'Warning: This application is a work in progress.'})
   
   output$text1 <- renderText({
@@ -321,10 +279,9 @@ shinyServer(function(input, output, session) {
     paste("The mitigation factors for", formalName(),'are:')
   })  
   
+  ## manhattan plot rendering
   output$manhattanplot <- renderPlot({
-    results <- riskfactors()
     results$c %>%
-      # mutate(`BH p-value` = as.numeric(`BH p-value`)) %>%
       ggplot() +
       geom_point(aes(x=reorder(`Study Variable Code`, order(Category)), y=-log10(`BH p-value`), color=Category)) +
       geom_hline(yintercept=-log10(input$threshold)) +
@@ -332,12 +289,11 @@ shinyServer(function(input, output, session) {
       ggtitle('Manhattan Plot of Study p-values') +
       xlab('Study Variable')
   })
-  # addPopover(session, "manhattanplot", "Data", content = "can you see me?", placement='bottom', trigger = 'hover')
   
+  ## regression coefficient plot rendering
   output$logoddsplot <- renderPlot({
     results <- riskfactors()
     results$c %>%
-      # mutate(`BH p-value` = as.numeric(`BH p-value`)) %>%
       filter(`BH p-value` < input$threshold) %>%
       ggplot() +
       geom_point(aes(x=reorder(`Study Variable Code`, order(Category)), y=`Regression Coefficient`, color=Category)) +
@@ -348,8 +304,5 @@ shinyServer(function(input, output, session) {
       ggtitle('Significant Study Variable Regression Coefficients With 95% Confidence Intervals') +
       xlab('Study Variable Code')
   })
-  
-  # output$cadreTable <- renderDataTable(cadre_table)
-
 })
 
