@@ -8,8 +8,8 @@
 #
 #
 
-library(shinyBS)
-library(readr)
+require(shinyBS)
+require(readr)
 
 filePath <- '' # where everything lives
 
