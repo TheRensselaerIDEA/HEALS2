@@ -9,8 +9,8 @@
 require(tidyverse) # the only real package
 require(broom)     # make model output aesthetic
 require(survey)    # survey analysis
-library(shiny)     # interative applications
-library(shinyBS)   # popup windows in shiny
+require(shiny)     # interative applications
+require(shinyBS)   # popup windows in shiny
 
 filePath <- "~/ShinyApps/risk_browser_v2/analytic/"
 
