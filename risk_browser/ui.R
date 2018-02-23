@@ -8,16 +8,10 @@
 #
 #
 
-## questions about precision cohort tab:
-## should it repeat all of the options of the population level tab?
-## should it depend on those options already being selected?
-
-# library(shiny)
 library(shinyBS)
 library(readr)
 
-filePath <- ''#'home/newa/risk_browser/' # where everything lives
-# fullSet <- read_csv(paste0(filePath, "fullSet.csv"))
+filePath <- '' # where everything lives
 
 # Define UI for application that draws a histogram
 shinyUI(navbarPage("NHANES RISK BROWSER",
@@ -71,10 +65,6 @@ shinyUI(navbarPage("NHANES RISK BROWSER",
                                                        'Polyaromatic Hydrocarbons'='phy', 'Volatile Organic Compounds'='vol'), 
                                             selected=c('met', 'pht'), selectize=TRUE, multiple=TRUE),
                                 numericInput('threshold', label = h5('p-value threshold for significance'), min=0, max=1, value=0.05, step=0.001),
-                                # selectInput("sortby", label = h5("Sort results by:"), 
-                                #             choices=list('Log Odds Ratio'='Log-Odds Ratio','p values'='BH p-value', 'Category'),
-                                #             selected=c('Log-Odds Ratio')),
-                                # radioButtons("order", label=h5("Order:"), choices=list('ascending','descending'), inline=TRUE), 
                                 br(),
                                 submitButton("Apply Changes")
                               )),
@@ -82,12 +72,12 @@ shinyUI(navbarPage("NHANES RISK BROWSER",
                               # Edit the output panel
                               column(9, wellPanel(
                                                   textOutput("warning"), br(), 
-                                                   textOutput("text1"), dataTableOutput("riskfactor"), 
-                                                   textOutput("text3"), dataTableOutput("mitifactor"), 
-                                                   plotOutput('manhattanplot'),
-                                                   plotOutput('logoddsplot'),
-                                                   bsTooltip(id="don't look at me!", placement='left', title='can you see me?', trigger='click')
-                                                   )),
+                                                  textOutput("text1"), dataTableOutput("riskfactor"), 
+                                                  textOutput("text3"), dataTableOutput("mitifactor"), 
+                                                  plotOutput('manhattanplot'),
+                                                  plotOutput('logoddsplot'),
+                                                  bsTooltip(id="don't look at me!", placement='left', title='can you see me?', trigger='click')
+                                                  )),
                               
                               # Change the color, font size, etc of the output result
                               tags$head(tags$style(
@@ -138,15 +128,6 @@ shinyUI(navbarPage("NHANES RISK BROWSER",
                                 submitButton("Apply Changes")
                               )),
                               
-                              # Edit the output panel
-                              # column(9, wellPanel(textOutput("warning"), br(), 
-                              #                     textOutput("text1"), dataTableOutput("riskfactor"), 
-                              #                     textOutput("text3"), dataTableOutput("mitifactor"), 
-                              #                     plotOutput('manhattanplot'),
-                              #                     plotOutput('logoddsplot'),
-                              #                     bsTooltip(id="don't look at me!", placement='left', title='can you see me?', trigger='click')
-                              # )),
-                              
                               # Change the color, font size, etc of the output result
                               tags$head(tags$style(
                                 "#warning{color:red;font-size:15px;}",
@@ -165,24 +146,7 @@ shinyUI(navbarPage("NHANES RISK BROWSER",
                                 "#AIC{align:center}",
                                 "#SampleCount{align:center}"
                               ))
-                            ))#,
-                   # tabPanel("Cadre Analysis",
-                   #          
-                   #          # Edit the user selection panel
-                   #          fluidRow(
-                   #            column(3, wellPanel(
-                   #              h5('foo'),
-                   #              br()
-                   #            )),
-                   #            
-                   #            # Edit the output panel
-                   #            column(9, wellPanel(textOutput("warning"),
-                   #                                br(),
-                   #                                h5('bar'),
-                   #                                # dataTableOutput("cadreTable"),
-                   #                                submitButton("Apply Changes")
-                   #            ))
-                   #          ))
+                            ))
         )
 )
 
