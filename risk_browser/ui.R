@@ -8,12 +8,9 @@
 #
 #
 
-require(shinyBS)
-require(readr)
+library(shinyBS)
+library(readr)
 
-filePath <- '' # where everything lives
-
-# Define UI for application that draws a histogram
 shinyUI(navbarPage("NHANES RISK BROWSER",
                    
                    #First tab
@@ -72,12 +69,12 @@ shinyUI(navbarPage("NHANES RISK BROWSER",
                               # Edit the output panel
                               column(9, wellPanel(
                                                   textOutput("warning"), br(), 
-                                                  textOutput("text1"), dataTableOutput("riskfactor"), 
-                                                  textOutput("text3"), dataTableOutput("mitifactor"), 
-                                                  plotOutput('manhattanplot'),
-                                                  plotOutput('logoddsplot'),
-                                                  bsTooltip(id="don't look at me!", placement='left', title='can you see me?', trigger='click')
-                                                  )),
+                                                   textOutput("text1"), dataTableOutput("riskfactor"), 
+                                                   textOutput("text3"), dataTableOutput("mitifactor"), 
+                                                   plotOutput('manhattanplot'),
+                                                   plotOutput('logoddsplot'),
+                                                   bsTooltip(id="don't look at me!", placement='left', title='can you see me?', trigger='click')
+                                                   )),
                               
                               # Change the color, font size, etc of the output result
                               tags$head(tags$style(
