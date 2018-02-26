@@ -1,6 +1,6 @@
 # Welcome to NHANES risk browser.
 
-The NHANES Risk Browser provides the ability to select a disease or riskful health condition, a large number of factors that might impact this condition; then it analyzes their association with the selected disease and present the results in tabular and graphical formats.
+The NHANES Risk Browser provides the ability to select a study population, a disease or riskful health condition, a large number of risk factors that might impact this condition, and a set of already known control factors; it then analyzes the risk factors' association with the selected disease and presents the results in tabular and graphical formats.
 
 The workflow is based on the Environment-Wide Association Study (Patel et al (2010) DOI:10.1371/journal.pone.0010746). The data source is the National Health and Nutrition Examination Survey ([NHANES](https://www.cdc.gov/nchs/nhanes/index.htm)). 
 
@@ -17,7 +17,7 @@ Notes:
  
 # Running the risk browser
 
-To run the risk browser, locally, download the folder here. You'll need R, RStudio, and the following R packages: 
+To run the risk browser, locally, download the repo. You'll need R, RStudio, and the following R packages: 
 
 - `tidyverse` - easy data manipulation
 - `survey`    - analysis on complex survey designs
@@ -32,18 +32,20 @@ Open either `server.R` or `ui.R` in RStudio and click the "Run App" button in th
 
 The two scripts `ui.R` and `server.R` contain all of the browser's code. You need both of them in the same directory to run it.
 
-The `analytic` subdirectory contains all of the NHANES datasets used for the browser. The dataset structure was designed to be easily usable in the browser, so there's a lot of redundant variables in them.
+The `analytic` subdirectory contains all of the NHANES datasets used for the browser. The dataset structure was designed to be usable by the browser with minimal data transformations, so there's a lot of redundant variables in them.
 
 The file `allNames.csv` contains the full names of all the NHANES variables.
 
 # Areas for improvement
 
-- The browser is currently very fragile with respect to failure. It should have better handling of degenerate precision cohorts and incomplete analytic sets.
+- The browser is currently very fragile with respect to failure. It should have better handling of degenerate (i.e. empty) precision cohorts and incomplete analytic sets.
 
-- Because `server.R` relies heavily on `shiny::reactive` functions, a number of expensive calculations are repeated. This can probably be fixed by rewriting the script to instead use `shiny::observeEvent` functions.
+- Because `server.R` relies heavily on `shiny::reactive` functions, a number of expensive modeling calculations are repeated. This can probably be fixed by rewriting the script to instead use `shiny::observeEvent` functions.
 
 - Selected control variables and a summary of the precision cohort selected should be printed in the Analysis Results column of the Population Analysis window. Right now, the interface is less than transparent.
 
-- The progress bar is not great. It can be made much more informative with functionality-specific progress messages (e.g. "constructing survey cohort", "running models for first dataset", etc.).
+- The progress bar is not great. It can be made more informative with functionality-specific progress messages (e.g. "constructing survey cohort", "running models for first dataset", etc.).
 
 - Not all datasets contain all possible control variables -- you can only use subsets of expert-recommended control variables. If more control variables can be added without having a large effect on the number of complete observations, they should be added.
+
+- Cadre analysis is not available yet. This is partially because we don't know the best way to present the more complex cadre models succinctly. We should fix that.
